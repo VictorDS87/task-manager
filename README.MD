@@ -1,6 +1,23 @@
 # Sobre o projeto
 
-O projeto tem como objetivo criar um gerenciador de tarefas pelo terminal, permitindo criar, editar e remover tarefas.
+O projeto tem como objetivo criar um gerenciador de tarefas pelo terminal, permitindo criar, editar e remover tarefas. Sendo possível
+adicionar o titulo e a descrição da tarefa
+
+# Funções
+
+Dentro do programa é possível:
+
+1. Criar uma nova tarefa, contendo titulo e descrição
+
+2. Visualizar todas as tarefas criadas, escolhendo entre exibir todas, exibir as completas, ou as em progresso. Após isso é possível selecionar uma tarefa para visualizar a descrição da mesma
+
+3. Definir uma tarefa como concluído
+
+4. Definir uma tarefa como em progresso
+
+5. Apagar uma tarefa
+
+6. Sair do programa
 
 # Como iniciar o projeto (Via código)
 

@@ -9,7 +9,8 @@ from datetime import datetime
 # 2 - create_table (create table sqlite)
 # 2 - choices (showing the options and redirecting to the specific function)
 # 4 - new_task (create new task and add task in sql )
-# 5 - view_tasks (Pulls tasks from the database and displays them, with 3 more filter options within the function, being completed, in progress and all )
+# 5 - view_tasks (Pulls tasks from the database and displays them, with 3 more filter options within the function,
+#     being completed, in progress and all. Show description of selected task )
 # 6 - mark_task_completed (Displays all tasks in progress and allows you to change the status of the selected one to completed)
 # 7 - mark_task_uncompleted (Displays all tasks completed and allows you to change the status of the selected one to in progress)
 # 9 - remove_task (displays all tasks and allows you to select one to remove)
@@ -25,6 +26,7 @@ class TaskManager:
             self.conn.execute('''
                 CREATE TABLE IF NOT EXISTS tasks (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
                     description TEXT NOT NULL,
                     created_at TEXT NOT NULL,
                     completed INTEGER NOT NULL DEFAULT 0
@@ -81,27 +83,34 @@ class TaskManager:
 
     def new_task(self, stdscr):
         curses.echo()
+        # get title task
         stdscr.clear()
-        stdscr.addstr(0, 0, "Enter the new task: ")
+        stdscr.addstr(0, 0, "Enter the title new task: ")
         task = stdscr.getstr().decode('utf-8')
-        if task.strip():
-            created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            
-            with self.conn:
-                self.conn.execute('INSERT INTO tasks (description, created_at) VALUES (?, ?)', (task, created_at))
-            
-            stdscr.addstr(1, 0, f"Task '{task}' added. Press any key to return to menu.")
+        if not task.strip():
+            stdscr.addstr(1, 0, f"Enter a character for the task to be created.")
             stdscr.getch()
-            curses.noecho()
             return
-        stdscr.addstr(1, 0, f"Enter a character for the task to be created.")
+
+        # get description task
+        stdscr.clear()
+        stdscr.addstr(0, 0, "Enter the description new task: ")
+        description = stdscr.getstr().decode('utf-8')
+
+        created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        with self.conn:
+            self.conn.execute('INSERT INTO tasks (title, description, created_at) VALUES (?, ?, ?)', (task, description, created_at))
+        
+        stdscr.addstr(1, 0, f"Task '{task}' added. Press any key to return to menu.")
         stdscr.getch()
+        curses.noecho()
 
     def view_tasks(self, stdscr):
         stdscr.clear()
         
-        # custom options for filtering
-        filter_options = ["All Tasks", "Completed Tasks", "Incomplete Tasks"]
+        # Custom options for filtering
+        filter_options = ["All Tasks", "Completed Tasks", "In Progress Tasks"]
         current_filter = 0
 
         curses.curs_set(0)
@@ -127,34 +136,61 @@ class TaskManager:
 
         filter_choice = filter_options[current_filter]
         
+        # Fetch tasks based on filter choice
+        cursor = self.conn.cursor()
         if filter_choice == "All Tasks":
-            cursor = self.conn.cursor()
-            cursor.execute('SELECT id, description, completed FROM tasks')
+            cursor.execute('SELECT id, title, completed FROM tasks')
         elif filter_choice == "Completed Tasks":
-            cursor = self.conn.cursor()
-            cursor.execute('SELECT id, description, completed FROM tasks WHERE completed = 1')
-        elif filter_choice == "Incomplete Tasks":
-            cursor = self.conn.cursor()
-            cursor.execute('SELECT id, description, completed FROM tasks WHERE completed = 0')
+            cursor.execute('SELECT id, title, completed FROM tasks WHERE completed = 1')
+        elif filter_choice == "In Progress Tasks":
+            cursor.execute('SELECT id, title, completed FROM tasks WHERE completed = 0')
 
         tasks = cursor.fetchall()
         
         if not tasks:
             stdscr.clear()
             stdscr.addstr(0, 0, "No tasks available. Press any key to return to menu.")
-        else:
-            stdscr.clear()
-            stdscr.addstr(0, 0, f"Tasks ({filter_choice}):")
-            for idx, (task_id, description, completed) in enumerate(tasks, start=1):
-                status = " - (Completed)" if completed else " - (In progress)"
-                stdscr.addstr(idx, 0, f"{idx}. {description}{status}")
-            stdscr.addstr(len(tasks) + 1, 0, "Press any key to return to menu.")
+            stdscr.getch()
+            return
         
-        stdscr.getch()
+        # Show tasks with their status and show description of selected task
+        stdscr.clear()
+        stdscr.addstr(0, 0, "Select a task:")
+        current_option = 0
+
+        while True:
+            stdscr.clear()
+            for idx, (task_id, title, completed) in enumerate(tasks):
+                status = "Completed" if completed else "In progress"
+                if idx == current_option:
+                    stdscr.addstr(idx + 1, 0, f"{title} - ({status})", curses.A_REVERSE)
+                else:
+                    stdscr.addstr(idx + 1, 0, f"{title} - ({status})")
+            
+            key = stdscr.getch()
+            
+            if key == curses.KEY_UP and current_option > 0:
+                current_option -= 1
+            elif key == curses.KEY_DOWN and current_option < len(tasks) - 1:
+                current_option += 1
+            elif key == curses.KEY_ENTER or key in [10, 13]:
+                task_id = tasks[current_option][0]
+                cursor.execute('SELECT description FROM tasks WHERE id = ?', (task_id,))
+                task_description = cursor.fetchone()[0]
+                
+                stdscr.clear()
+                stdscr.addstr(0, 0, f"Description: {task_description}")
+                stdscr.addstr(1, 0, "Press any key to return to menu.")
+                stdscr.refresh()
+                stdscr.getch()
+                break
+
+            stdscr.refresh()
+
 
     def mark_task_completed(self, stdscr):
         cursor = self.conn.cursor()
-        cursor.execute('SELECT id, description FROM tasks WHERE completed = 0')
+        cursor.execute('SELECT id, title FROM tasks WHERE completed = 0')
         tasks = cursor.fetchall()
         
         if not tasks:
@@ -169,11 +205,11 @@ class TaskManager:
 
         while True:
             stdscr.clear()
-            for idx, (task_id, description) in enumerate(tasks):
+            for idx, (task_id, title) in enumerate(tasks):
                 if idx == current_option:
-                    stdscr.addstr(idx + 1, 0, description, curses.A_REVERSE)
+                    stdscr.addstr(idx + 1, 0, title, curses.A_REVERSE)
                 else:
-                    stdscr.addstr(idx + 1, 0, description)
+                    stdscr.addstr(idx + 1, 0, title)
             
             key = stdscr.getch()
             
@@ -194,7 +230,7 @@ class TaskManager:
 
     def mark_task_uncompleted(self, stdscr):
         cursor = self.conn.cursor()
-        cursor.execute('SELECT id, description FROM tasks WHERE completed = 1')
+        cursor.execute('SELECT id, title FROM tasks WHERE completed = 1')
         tasks = cursor.fetchall()
         
         if not tasks:
@@ -209,11 +245,11 @@ class TaskManager:
 
         while True:
             stdscr.clear()
-            for idx, (task_id, description) in enumerate(tasks):
+            for idx, (task_id, title) in enumerate(tasks):
                 if idx == current_option:
-                    stdscr.addstr(idx + 1, 0, description, curses.A_REVERSE)
+                    stdscr.addstr(idx + 1, 0, title, curses.A_REVERSE)
                 else:
-                    stdscr.addstr(idx + 1, 0, description)
+                    stdscr.addstr(idx + 1, 0, title)
             
             key = stdscr.getch()
             
@@ -234,7 +270,7 @@ class TaskManager:
 
     def remove_task(self, stdscr):
         cursor = self.conn.cursor()
-        cursor.execute('SELECT id, description FROM tasks')
+        cursor.execute('SELECT id, title FROM tasks')
         tasks = cursor.fetchall()
         
         if not tasks:
@@ -249,11 +285,11 @@ class TaskManager:
 
         while True:
             stdscr.clear()
-            for idx, (task_id, description) in enumerate(tasks):
+            for idx, (task_id, title) in enumerate(tasks):
                 if idx == current_option:
-                    stdscr.addstr(idx + 1, 0, description, curses.A_REVERSE)
+                    stdscr.addstr(idx + 1, 0, title, curses.A_REVERSE)
                 else:
-                    stdscr.addstr(idx + 1, 0, description)
+                    stdscr.addstr(idx + 1, 0, title)
             
             key = stdscr.getch()
             
