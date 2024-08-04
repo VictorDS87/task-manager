@@ -2,7 +2,7 @@ import curses
 import sqlite3
 from datetime import datetime
 
-# RaskManager Doc
+# TaskManager Doc
 # all functions require the "stdscr" parameter, which comes from curses, the library used to make the terminal more dynamic
 # functions 
 # 1 - __init__ (initialize the database)
@@ -15,7 +15,7 @@ from datetime import datetime
 # 9 - remove_task (displays all tasks and allows you to select one to remove)
 
 
-class RaskManager:
+class TaskManager:
     def __init__(self):
         self.conn = sqlite3.connect('tasks.db')
         self.create_table()
@@ -273,5 +273,5 @@ class RaskManager:
             stdscr.refresh()
 
 if __name__ == "__main__":
-    main = RaskManager()
+    main = TaskManager()
     curses.wrapper(main.choices)
