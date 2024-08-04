@@ -11,8 +11,9 @@ from datetime import datetime
 # 4 - new_task (create new task and add task in sql )
 # 5 - view_tasks (Pulls tasks from the database and displays them, with 3 more filter options within the function,
 #     being completed, in progress and all. Show description of selected task )
-# 6 - mark_task_completed (Displays all tasks in progress and allows you to change the status of the selected one to completed)
-# 7 - mark_task_uncompleted (Displays all tasks completed and allows you to change the status of the selected one to in progress)
+# 6 - edit_task (Shows all tasks and allows you to click on one to edit (starting from scratch) the task title and description)
+# 7 - mark_task_completed (Displays all tasks in progress and allows you to change the status of the selected one to completed)
+# 8 - mark_task_uncompleted (Displays all tasks completed and allows you to change the status of the selected one to in progress)
 # 9 - remove_task (displays all tasks and allows you to select one to remove)
 
 
@@ -39,6 +40,7 @@ class TaskManager:
         options = [
             "New Task", 
             "View Tasks", 
+            "Edit Task", 
             "Mark Task as Completed", 
             "Mark Task as Uncompleted", 
             "Remove Task", 
@@ -70,12 +72,14 @@ class TaskManager:
                 elif current_option == 1:
                     self.view_tasks(stdscr)
                 elif current_option == 2:
-                    self.mark_task_completed(stdscr)
+                    self.edit_task(stdscr)
                 elif current_option == 3:
-                    self.mark_task_uncompleted(stdscr)
+                    self.mark_task_completed(stdscr)
                 elif current_option == 4:
-                    self.remove_task(stdscr)
+                    self.mark_task_uncompleted(stdscr)
                 elif current_option == 5:
+                    self.remove_task(stdscr)
+                elif current_option == 6:
                     break
 
 
@@ -186,6 +190,63 @@ class TaskManager:
                 break
 
             stdscr.refresh()
+
+    def edit_task(self, stdscr):
+        curses.echo()
+        stdscr.clear()
+        
+        # Get the list of tasks to edit
+        cursor = self.conn.cursor()
+        cursor.execute('SELECT id, title FROM tasks')
+        tasks = cursor.fetchall()
+        
+        if not tasks:
+            stdscr.clear()
+            stdscr.addstr(0, 0, "No tasks available to edit. Press any key to return to menu.")
+            stdscr.getch()
+            return
+        
+        # select a task to edit
+        stdscr.clear()
+        stdscr.addstr(0, 0, "Select a task to edit:")
+        current_option = 0
+
+        while True:
+            stdscr.clear()
+            for idx, (task_id, title) in enumerate(tasks):
+                if idx == current_option:
+                    stdscr.addstr(idx + 1, 0, title, curses.A_REVERSE)
+                else:
+                    stdscr.addstr(idx + 1, 0, title)
+            
+            key = stdscr.getch()
+            
+            if key == curses.KEY_UP and current_option > 0:
+                current_option -= 1
+            elif key == curses.KEY_DOWN and current_option < len(tasks) - 1:
+                current_option += 1
+            elif key == curses.KEY_ENTER or key in [10, 13]:
+                task_id = tasks[current_option][0]
+                break
+
+        # Get new title and description
+        stdscr.clear()
+        stdscr.addstr(0, 0, "Enter the new title for the task: ")
+        new_title = stdscr.getstr().decode('utf-8')
+        
+        stdscr.clear()
+        stdscr.addstr(0, 0, "Enter the new description for the task: ")
+        new_description = stdscr.getstr().decode('utf-8')
+
+        # Update the task in the database
+        with self.conn:
+            self.conn.execute('UPDATE tasks SET title = ?, description = ? WHERE id = ?', (new_title, new_description, task_id))
+
+        stdscr.clear()
+        stdscr.addstr(0, 0, f"Task '{new_title}' updated successfully.")
+        stdscr.addstr(1, 0, "Press any key to return to menu.")
+        stdscr.refresh()
+        stdscr.getch()
 
 
     def mark_task_completed(self, stdscr):

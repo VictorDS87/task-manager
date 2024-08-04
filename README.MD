@@ -11,13 +11,15 @@ Dentro do programa é possível:
 
 2. Visualizar todas as tarefas criadas, escolhendo entre exibir todas, exibir as completas, ou as em progresso. Após isso é possível selecionar uma tarefa para visualizar a descrição da mesma
 
-3. Definir uma tarefa como concluído
+3. Permite editar o titulo e a descrição de uma tarefa
 
-4. Definir uma tarefa como em progresso
+4. Definir uma tarefa como concluído
 
-5. Apagar uma tarefa
+5. Definir uma tarefa como em progresso
 
-6. Sair do programa
+6. Apagar uma tarefa
+
+7. Sair do programa
 
 # Como iniciar o projeto (Via código)
 
